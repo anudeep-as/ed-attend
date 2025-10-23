@@ -3,6 +3,25 @@ import { motion } from 'framer-motion';
 import { useTimetable } from '../hooks/useTimetable';
 import toast from 'react-hot-toast';
 
+const classMap = {
+  'CS-A': 'Computer Science A',
+  'CS-B': 'Computer Science B',
+  'IT-A': 'Information Technology A',
+  'IT-B': 'Information Technology B',
+  'ECE-A': 'Electronics & Communication A',
+  'ECE-B': 'Electronics & Communication B',
+  'ME-A': 'Mechanical Engineering A',
+  'ME-B': 'Mechanical Engineering B',
+  'CE-A': 'Civil Engineering A',
+  'CE-B': 'Civil Engineering B',
+  'EE-A': 'Electrical Engineering A',
+  'EE-B': 'Electrical Engineering B',
+  'cs_a': 'Computer Science A',
+  'cse_a': 'Computer Science A',
+  'cs_b': 'Computer Science B',
+  'cse_b': 'Computer Science B'
+};
+
 const AdminTimetable = ({ user }) => {
   const [formData, setFormData] = useState({
     classId: '',
@@ -109,18 +128,18 @@ const AdminTimetable = ({ user }) => {
                     className="w-full p-2 border rounded"
                   >
                     <option value="">Select a class...</option>
-                    <option value="CS-A">Computer Science A</option>
-                    <option value="CS-B">Computer Science B</option>
-                    <option value="IT-A">Information Technology A</option>
-                    <option value="IT-B">Information Technology B</option>
-                    <option value="ECE-A">Electronics & Communication A</option>
-                    <option value="ECE-B">Electronics & Communication B</option>
-                    <option value="ME-A">Mechanical Engineering A</option>
-                    <option value="ME-B">Mechanical Engineering B</option>
-                    <option value="CE-A">Civil Engineering A</option>
-                    <option value="CE-B">Civil Engineering B</option>
-                    <option value="EE-A">Electrical Engineering A</option>
-                    <option value="EE-B">Electrical Engineering B</option>
+                    <option value="CS-A">{classMap['CS-A']}</option>
+                    <option value="CS-B">{classMap['CS-B']}</option>
+                    <option value="IT-A">{classMap['IT-A']}</option>
+                    <option value="IT-B">{classMap['IT-B']}</option>
+                    <option value="ECE-A">{classMap['ECE-A']}</option>
+                    <option value="ECE-B">{classMap['ECE-B']}</option>
+                    <option value="ME-A">{classMap['ME-A']}</option>
+                    <option value="ME-B">{classMap['ME-B']}</option>
+                    <option value="CE-A">{classMap['CE-A']}</option>
+                    <option value="CE-B">{classMap['CE-B']}</option>
+                    <option value="EE-A">{classMap['EE-A']}</option>
+                    <option value="EE-B">{classMap['EE-B']}</option>
                   </select>
                 </div>
 
@@ -231,7 +250,7 @@ const AdminTimetable = ({ user }) => {
 
           {/* Current Timetable View */}
           <div className="mt-8">
-            <h3 className="font-semibold mb-4">Current Timetable {formData.classId && `for ${formData.classId.replace('_', ' ').toUpperCase()}`}</h3>
+            <h3 className="font-semibold mb-4">Current Timetable {formData.classId && `for ${classMap[formData.classId] || formData.classId.replace('_', ' ').toUpperCase()}`}</h3>
             {formData.classId ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border">

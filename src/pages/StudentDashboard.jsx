@@ -1,21 +1,25 @@
 import { motion } from 'framer-motion';
-import { Award, Calendar, CheckCircle, Clock, FileText, MapPin } from 'lucide-react';
+import { Award, Calendar, CheckCircle, Clock, FileText, MapPin, Bluetooth } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import AttendanceChart from '../components/AttendanceChart';
 import FaceRecognition from '../components/FaceRecognition';
 import Leaderboard from '../components/Leaderboard';
 import ODForm from '../components/ODForm';
+import CampusMap from '../components/CampusMap';
 import { useAttendance } from '../hooks/attendance';
+import { useBLEAttendance } from '../hooks/useBLEAttendance';
 import { useTimetable } from '../hooks/useTimetable';
 import { supabase } from '../lib/supabase';
 
 const StudentDashboard = ({ user }) => {
   const { markAttendance } = useAttendance();
+  const { isScanning, beaconFound, isWebBluetoothSupported, scanForBeacon } = useBLEAttendance();
   const { fetchTimetable, fetchExams } = useTimetable();
   const [attendanceStatus, setAttendanceStatus] = useState('not-marked');
   const [currentLocation, setCurrentLocation] = useState(null);
   const [showODForm, setShowODForm] = useState(false);
   const [showFaceRecognition, setShowFaceRecognition] = useState(false);
+  const [attendanceMethod, setAttendanceMethod] = useState('ble'); // Only BLE
   const [todaySchedule, setTodaySchedule] = useState([]);
   const [timetableData, setTimetableData] = useState([]);
   const [examsData, setExamsData] = useState([]);
@@ -27,8 +31,8 @@ const StudentDashboard = ({ user }) => {
     total: 100
   });
 
-  // School location for GPS verification (Bangalore coordinates for demo)
-  const SCHOOL_LOCATION = { lat: 12.9716, lng: 77.5946 };
+  // College location for GPS verification
+  const COLLEGE_LOCATION = { lat: 12.909367891934833, lng: 79.29550887282808 };
 
   // Calculate distance between two coordinates using Haversine formula
   const getDistance = (lat1, lng1, lat2, lng2) => {
@@ -42,9 +46,40 @@ const StudentDashboard = ({ user }) => {
     return R * c; // Distance in km
   };
 
-  const isWithinSchoolPremises = (lat, lng) => {
-    const distance = getDistance(lat, lng, SCHOOL_LOCATION.lat, SCHOOL_LOCATION.lng);
-    return distance <= 1; // Within 1km of school
+  const isWithinCollegePremises = (lat, lng) => {
+    const distance = getDistance(lat, lng, COLLEGE_LOCATION.lat, COLLEGE_LOCATION.lng);
+    return distance <= 0.050; // Within 1km of college
+  };
+
+  // Fetch timetable for student's class
+  const loadTimetable = async () => {
+    if (user?.class_id) {
+      const { data } = await fetchTimetable(user.class_id);
+      if (data) {
+        setTimetableData(data);
+        // Filter for today's schedule
+        const today = new Date().getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const todayEntries = data.filter(entry => entry.day === dayNames[today]);
+        setTodaySchedule(todayEntries.map(entry => ({
+          id: entry.id,
+          subject: entry.subject,
+          time: `${entry.start_time} - ${entry.end_time}`,
+          teacher: entry.teacher,
+          status: 'upcoming' // Could be calculated based on current time
+        })));
+      }
+    }
+  };
+
+  // Fetch exams for student's class
+  const loadExams = async () => {
+    if (user?.class_id) {
+      const { data } = await fetchExams(user.class_id);
+      if (data) {
+        setExamsData(data);
+      }
+    }
   };
 
   useEffect(() => {
@@ -63,91 +98,53 @@ const StudentDashboard = ({ user }) => {
       );
     }
 
-    // Fetch timetable for student's class
-    const loadTimetable = async () => {
-      if (user?.class_id) {
-        const { data } = await fetchTimetable(user.class_id);
-        if (data) {
-          setTimetableData(data);
-          // Filter for today's schedule
-          const today = new Date().getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
-          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-          const todayEntries = data.filter(entry => entry.day === dayNames[today]);
-          setTodaySchedule(todayEntries.map(entry => ({
-            id: entry.id,
-            subject: entry.subject,
-            time: `${entry.start_time} - ${entry.end_time}`,
-            teacher: entry.teacher,
-            status: 'upcoming' // Could be calculated based on current time
-          })));
-        }
-      }
-    };
-
-    // Fetch exams for student's class
-    const loadExams = async () => {
-      if (user?.class_id) {
-        const { data } = await fetchExams(user.class_id);
-        if (data) {
-          setExamsData(data);
-        }
-      }
-    };
-
     loadTimetable();
     loadExams();
 
-    // Real-time subscription for timetable changes
-    let timetableSubscription;
-    if (user?.class_id) {
-      timetableSubscription = supabase
-        .channel('timetable-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'timetable'
-          },
-          (payload) => {
-            console.log('Timetable change detected:', payload);
-            // Check if the change affects this student's class
-            if (payload.new?.class_id === user.class_id || payload.old?.class_id === user.class_id) {
-              loadTimetable(); // Refetch on any change for this class
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log('Subscription status:', status);
-        });
-    }
+    // Subscribe to timetable changes for real-time updates
+    const timetableChannel = supabase
+      .channel('timetable_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'timetable' }, (payload) => {
+        console.log('Timetable changed:', payload);
+        loadTimetable();
+      })
+      .subscribe();
 
-    // Cleanup subscription
+    // Subscribe to exams changes for real-time updates
+    const examsChannel = supabase
+      .channel('exams_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, (payload) => {
+        console.log('Exams changed:', payload);
+        loadExams();
+      })
+      .subscribe();
+
     return () => {
-      if (timetableSubscription) {
-        supabase.removeChannel(timetableSubscription);
-      }
+      supabase.removeChannel(timetableChannel);
+      supabase.removeChannel(examsChannel);
     };
   }, [user, fetchTimetable, fetchExams]);
 
   const handleMarkAttendance = () => {
-    if (!currentLocation) {
-      alert('Please enable location access to mark attendance');
-      return;
-    }
+    handleBLEAttendance();
+  };
 
-    if (!isWithinSchoolPremises(currentLocation.lat, currentLocation.lng)) {
-      alert('You must be within school premises to mark attendance');
-      return;
-    }
+  const handleBLEAttendance = async () => {
+    // Scan for beacon (will try Web Bluetooth first, then fallback to simulation)
+    const result = await scanForBeacon('CLASSROOM_301', -70);
 
-    // Open face recognition modal
-    setShowFaceRecognition(true);
+    if (result.success && result.beacon) {
+      // Open face recognition modal after beacon detection
+      setShowFaceRecognition(true);
+    }
   };
 
   const handleFaceVerificationSuccess = async () => {
+    // Determine beacon ID if BLE method was used
+    const beaconId = attendanceMethod === 'ble' ? beaconFound?.id : null;
+
     // Mark attendance using the hook
-    const result = await markAttendance(user.id, currentLocation);
+    const result = await markAttendance(user.id, currentLocation, 'Current Class', beaconId);
     if (result.error) {
       alert('Failed to mark attendance. Please try again.');
       return;
@@ -165,7 +162,7 @@ const StudentDashboard = ({ user }) => {
 
     setAttendanceStatus('marked');
     setShowFaceRecognition(false);
-    alert('Attendance marked successfully! +10 points earned');
+    alert('Attendance marked successfully with BLE + Face! +10 points earned');
   };
 
   const handleODSubmit = (odData) => {
@@ -268,21 +265,46 @@ const StudentDashboard = ({ user }) => {
                   <MapPin className="h-4 w-4 mr-1" />
                   {currentLocation ? 'Location detected' : 'Getting location...'}
                 </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Clock className="h-4 w-4 mr-1" />
-                  {new Date().toLocaleTimeString()}
-                </div>
+                  <div className="text-sm text-gray-600">
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      Date: {new Date().toLocaleDateString()}
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      Time: {new Date().toLocaleTimeString()}
+                    </div>
+                  </div>
               </div>
-              
+
+
+
               {attendanceStatus === 'not-marked' ? (
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleMarkAttendance}
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
-                >
-                  Mark Attendance
-                </motion.button>
+                <>
+                  {isScanning ? (
+                    <div className="text-center py-3 px-4 bg-blue-50 text-blue-700 rounded-lg font-medium">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
+                        Scanning for BLE beacon...
+                      </div>
+                    </div>
+                  ) : beaconFound ? (
+                    <div className="text-center py-3 px-4 bg-green-50 text-green-700 rounded-lg font-medium">
+                      ✓ Beacon found! Attendance marked.
+                    </div>
+                  ) : (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleMarkAttendance}
+                      disabled={isScanning || !isWebBluetoothSupported()}
+                      className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
+                    >
+                      <Bluetooth className="h-4 w-4 inline mr-2" />
+                      Scan for BLE Beacon + Face
+                    </motion.button>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-3 px-4 bg-green-50 text-green-700 rounded-lg font-medium">
                   ✓ Attendance marked for today
@@ -456,6 +478,12 @@ const StudentDashboard = ({ user }) => {
 
             {/* Leaderboard */}
             <Leaderboard currentUser={user} />
+
+            {/* Campus Locations Map */}
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Campus Locations</h2>
+              <CampusMap />
+            </div>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { useRegistration } from '../hooks/useRegistration';
+import FaceRecognition from './FaceRecognition';
 
 const UserRegistrationForm = ({ onClose, onSuccess }) => {
   const { registerUser } = useRegistration();

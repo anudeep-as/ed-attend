@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion';
-import { Award, Calendar, CheckCircle, FileText, Users, XCircle } from 'lucide-react';
+import { Award, Calendar, CheckCircle, FileText, Users, XCircle, Bluetooth, Play, Square } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import AttendanceChart from '../components/AttendanceChart';
 import { useTimetable } from '../hooks/useTimetable';
-import { supabase } from '../lib/supabase';
+import { useBLEBroadcast } from '../hooks/useBLEBroadcast';
 
 const TeacherDashboard = ({ user }) => {
   const { fetchTeacherTimetable } = useTimetable();
+  const { isBroadcasting, beaconName, isWebBluetoothSupported, startBroadcasting, stopBroadcasting, updateBeaconName } = useBLEBroadcast();
   const [selectedClass, setSelectedClass] = useState('CS-A');
   const [timetableData, setTimetableData] = useState([]);
   const [todaySchedule, setTodaySchedule] = useState([]);
@@ -66,38 +67,6 @@ const TeacherDashboard = ({ user }) => {
       }
     };
     loadTimetable();
-
-    // Real-time subscription for timetable changes
-    let timetableSubscription;
-    if (user?.id) {
-      timetableSubscription = supabase
-        .channel('teacher-timetable-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'timetable'
-          },
-          (payload) => {
-            console.log('Teacher timetable change detected:', payload);
-            // Check if the change affects this teacher
-            if (payload.new?.teacher_id === user.id || payload.old?.teacher_id === user.id) {
-              loadTimetable(); // Refetch on any change for this teacher
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log('Teacher subscription status:', status);
-        });
-    }
-
-    // Cleanup subscription
-    return () => {
-      if (timetableSubscription) {
-        supabase.removeChannel(timetableSubscription);
-      }
-    };
   }, [user, fetchTeacherTimetable]);
 
   return (
@@ -307,6 +276,75 @@ const TeacherDashboard = ({ user }) => {
                     )}
                   </div>
                 ))}
+              </div>
+            </motion.div>
+
+            {/* BLE Beacon Control */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+            >
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">BLE Beacon Control</h2>
+
+              {/* Beacon Name Input */}
+              <div className="mb-4">
+                <label htmlFor="beacon-name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Beacon Name
+                </label>
+                <input
+                  id="beacon-name"
+                  type="text"
+                  value={beaconName}
+                  onChange={(e) => updateBeaconName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter beacon name (e.g., CLASSROOM_301)"
+                />
+              </div>
+
+              {/* Broadcast Status */}
+              <div className="mb-4">
+                <div className="flex items-center text-sm text-gray-600">
+                  <Bluetooth className="h-4 w-4 mr-1" />
+                  Status: {isBroadcasting ? (
+                    <span className="text-green-600 font-medium">Broadcasting "{beaconName}"</span>
+                  ) : (
+                    <span className="text-gray-500">Not broadcasting</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Broadcast Controls */}
+              <div className="space-y-2">
+                {!isBroadcasting ? (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => startBroadcasting(beaconName)}
+                    disabled={!isWebBluetoothSupported()}
+                    className="w-full flex items-center justify-center py-3 px-4 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors duration-200 disabled:opacity-50"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Start Broadcasting
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={stopBroadcasting}
+                    className="w-full flex items-center justify-center py-3 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors duration-200"
+                  >
+                    <Square className="h-4 w-4 mr-2" />
+                    Stop Broadcasting
+                  </motion.button>
+                )}
+
+                {!isWebBluetoothSupported() && (
+                  <div className="text-center text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                    ℹ️ Web Bluetooth not supported. Using simulation mode for demo purposes.
+                  </div>
+                )}
               </div>
             </motion.div>
 

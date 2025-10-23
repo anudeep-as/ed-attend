@@ -77,6 +77,25 @@ export const useTimetable = () => {
     'teacher_3': 'Dr. Williams'
   };
 
+  const classMap = {
+    'CS-A': 'CSE A',
+    'CS-B': 'CSE B',
+    'IT-A': 'IT A',
+    'IT-B': 'IT B',
+    'ECE-A': 'ECE A',
+    'ECE-B': 'ECE B',
+    'ME-A': 'ME A',
+    'ME-B': 'ME B',
+    'CE-A': 'CE A',
+    'CE-B': 'CE B',
+    'EE-A': 'EE A',
+    'EE-B': 'EE B',
+    'cs_a': 'CSE A',
+    'cse_a': 'CSE A',
+    'cs_b': 'CSE B',
+    'cse_b': 'CSE B'
+  };
+
   const timeSlots = [
     { id: 1, time: '9:00 - 9:50 AM' },
     { id: 2, time: '9:50 - 10:40 AM' },
@@ -187,6 +206,7 @@ export const useTimetable = () => {
       const formattedData = data.map(entry => ({
         id: entry.id,
         classId: entry.class_id,
+        className: classMap[entry.class_id] || entry.class_id,
         subject: subjectMap[entry.subject] || entry.subject,
         teacher: teacherMap[entry.teacher_id] || entry.teacher_id,
         day: mapNumberToDay(entry.day_of_week),
@@ -199,8 +219,8 @@ export const useTimetable = () => {
       return { success: true, data: formattedData };
     } catch (error) {
       console.error('Error fetching timetable:', error);
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: error.message || 'Failed to fetch timetable'
       };
     } finally {
@@ -229,6 +249,7 @@ export const useTimetable = () => {
       const formattedData = data.map(entry => ({
         id: entry.id,
         classId: entry.class_id,
+        className: classMap[entry.class_id] || entry.class_id,
         subject: subjectMap[entry.subject] || entry.subject,
         teacher: teacherMap[entry.teacher_id] || entry.teacher_id,
         day: mapNumberToDay(entry.day_of_week),
@@ -241,8 +262,8 @@ export const useTimetable = () => {
       return { success: true, data: formattedData };
     } catch (error) {
       console.error('Error fetching teacher timetable:', error);
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: error.message || 'Failed to fetch teacher timetable'
       };
     } finally {
@@ -271,6 +292,7 @@ export const useTimetable = () => {
       const formattedData = data.map(entry => ({
         id: entry.id,
         classId: entry.class_id,
+        className: classMap[entry.class_id] || entry.class_id,
         subject: subjectMap[entry.subject] || entry.subject,
         date: entry.date,
         start_time: entry.start_time,
@@ -281,8 +303,8 @@ export const useTimetable = () => {
       return { success: true, data: formattedData };
     } catch (error) {
       console.error('Error fetching exams:', error);
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: error.message || 'Failed to fetch exams'
       };
     } finally {

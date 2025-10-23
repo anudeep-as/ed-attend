@@ -6,7 +6,7 @@ export const useAttendance = () => {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const markAttendance = async (studentId, location, subject = 'Current Class') => {
+  const markAttendance = async (studentId, location, subject = 'Current Class', beaconId = null) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -17,6 +17,7 @@ export const useAttendance = () => {
           status: 'Present',
           location: JSON.stringify(location),
           subject,
+          beacon_id: beaconId,
           marked_at: new Date().toISOString()
         })
         .select()

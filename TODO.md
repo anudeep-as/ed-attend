@@ -1,48 +1,32 @@
-# Responsive Design Implementation Plan
+# BLE Attendance Integration Tasks
 
-## Overview
-Making the Ed-Attend project fully responsive for mobile and PC by adding Tailwind CSS responsive classes (sm:, md:, lg:, xl: prefixes) to components. Focus on grids, text sizes, spacing, tables, charts, forms, and layouts to ensure optimal viewing and interaction on all screen sizes.
+## Information Gathered
+- React app with Supabase backend
+- Existing attendance system uses GPS + face recognition
+- useAttendance hook handles marking attendance
+- StudentDashboard has "Mark Attendance" button
+- Need to integrate Web Bluetooth API for BLE beacon detection
 
-## Steps
+## Plan
+- [x] Create useBLEAttendance hook for BLE scanning logic
+- [x] Update useAttendance hook to support beaconId parameter
+- [x] Modify StudentDashboard to add BLE attendance option
+- [x] Add UI components for BLE scanning status
+- [x] Handle Web Bluetooth API permissions and browser compatibility
 
-### 1. Update Leaderboard Component
-- [x] Add responsive flex wrapping and text sizing in Leaderboard.jsx
-- [x] Ensure leaderboard items stack properly on mobile (e.g., use flex-col on small screens)
-- [x] Adjust padding and font sizes for touch-friendly mobile interactions
+## Dependent Files to be edited
+- [x] src/hooks/attendance.jsx - Add beaconId support
+- [x] src/pages/StudentDashboard.jsx - Add BLE button and logic
+- [x] src/hooks/useBLEAttendance.jsx - New hook for BLE functionality
 
-### 2. Update AdminDashboard Component
-- [x] Make the stats grid responsive (already has some, but fine-tune to 1-2 cols on mobile)
-- [x] Convert Class Performance table to mobile-friendly (add overflow-x-auto, stack rows on small screens)
-- [x] Adjust Low Attendance Students grid to stack on mobile
-- [x] Ensure charts and recent activities adapt to smaller screens
-
-### 3. Update AttendanceChart Component
-- [x] Make the grid responsive (stack pie and bar charts vertically on mobile)
-- [x] Adjust chart heights and font sizes for small screens
-- [x] Ensure summary stats grid stacks on mobile (1 col on sm:)
-
-### 4. Update Forms and Modals
-- [x] Update UserRegistrationForm.jsx: Make grid cols stack on mobile (1 col on sm:), adjust input sizes
-- [x] Update Login.jsx: Ensure role selection buttons stack and form fields are full-width on mobile
-- [x] Check ODForm.jsx and FaceRecognition.jsx for similar adjustments (if needed, read and update)
-
-### 5. Update StudentDashboard Component
-- [x] Adjust stats cards grid to 1-2 cols on mobile
-- [x] Make main content grid stack on small screens (lg: for 3 cols)
-- [x] Ensure schedule items and quick actions are touch-friendly
-
-### 6. Update Overall Layout and Other Pages
-- [ ] Fine-tune App.jsx: Ensure min-h-screen and padding adjust for mobile
-- [ ] Update Navbar.jsx: Already somewhat responsive, but verify mobile menu
-- [ ] Check other pages (Analytics.jsx, Reports.jsx, etc.) for grids/tables and add responsiveness
-- [ ] Test and verify with browser_action if needed
-
-### 7. Final Verification
-- [x] Run the app and test on different screen sizes
-- [x] Update TODO.md as steps complete
-- [x] Attempt completion once all steps done
-
-## Notes
-- Use Tailwind breakpoints: sm: (640px+), md: (768px+), lg: (1024px+), xl: (1280px+)
-- Prioritize mobile-first design
-- No new dependencies needed; leverage existing Tailwind setup
+## Followup steps
+- [x] Simplified to BLE + Face only (removed GPS option)
+- [x] Added BLE beacon broadcasting for teachers
+- [ ] Test in Chrome/Edge browser (Web Bluetooth supported)
+- [ ] Handle permission denied scenarios
+- [ ] Add error handling for unsupported browsers
+- [ ] Update database schema if beacon_id column needed
+- [ ] Run the app and verify BLE functionality
+- [x] Test teacher beacon broadcasting and student detection
+- [x] Implement localStorage-based beacon simulation for demo purposes
+- [x] Update error messages to reflect simulation mode
