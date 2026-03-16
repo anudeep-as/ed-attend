@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { GraduationCap, Lock, Shield, User, UserCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 
@@ -118,7 +118,7 @@ const Login = () => {
             transition={{ delay: 0.4 }}
             className="text-4xl font-bold text-gray-900 mb-2"
           >
-            Ed-Attend
+Ed-Attend
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }}
