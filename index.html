@@ -7,7 +7,16 @@
 <title>Ed-Attend</title>
   </head>
   <body>
-    <div id="root"></div>
+<div id="root"></div>
+    <script type="module">
+      // Handle all routes
+      window.addEventListener('popstate', () => window.location.reload());
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          registrations.forEach(registration => registration.unregister());
+        });
+      }
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
