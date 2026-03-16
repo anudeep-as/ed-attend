@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { authHelpers } from '../lib/supabase';
+import { authHelpers } from '../lib/firebase';
 
 const AuthContext = createContext(null);
 
@@ -114,3 +114,4 @@ export function AuthProvider({ children }) {
 }
 
 export { AuthContext };
+

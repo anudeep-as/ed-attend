@@ -12,7 +12,7 @@ import Analytics from './pages/Analytics';
 import Login from './pages/Login';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
-import StudentDashboard from './pages/StudentDashboard';
+import StudentDashboard from './pages/StudentDashboard_new';
 import TeacherDashboard from './pages/TeacherDashboard';
 
 function App() {

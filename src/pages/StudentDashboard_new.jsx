@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
-import { Award, Bluetooth, Calendar, CheckCircle, Clock, FileText, MapPin } from 'lucide-react';
+import { Award, Bluetooth, Calendar, CheckCircle, Clock, FileText, MapPin, Fingerprint } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import AttendanceChart from '../components/AttendanceChart';
 import CampusMap from '../components/CampusMap';
 import FaceRecognition from '../components/FaceRecognition';
+import FingerprintAuthentication from '../components/FingerprintAuthentication';
 import Leaderboard from '../components/Leaderboard';
 import ODForm from '../components/ODForm';
 import { useAttendance } from '../hooks/attendance';
@@ -19,7 +20,9 @@ const StudentDashboard = ({ user }) => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [showODForm, setShowODForm] = useState(false);
   const [showFaceRecognition, setShowFaceRecognition] = useState(false);
-  const [attendanceMethod, setAttendanceMethod] = useState('ble'); // Only BLE
+  const [showFingerprint, setShowFingerprint] = useState(false);
+  const [selectedBiometric, setSelectedBiometric] = useState(null);
+  const [attendanceMethod, setAttendanceMethod] = useState('ble');
   const [todaySchedule, setTodaySchedule] = useState([]);
   const [timetableData, setTimetableData] = useState([]);
   const [examsData, setExamsData] = useState([]);
@@ -31,34 +34,30 @@ const StudentDashboard = ({ user }) => {
     total: 100
   });
 
-  // College location for GPS verification
   const COLLEGE_LOCATION = { lat: 12.909367891934833, lng: 79.29550887282808 };
 
-  // Calculate distance between two coordinates using Haversine formula
   const getDistance = (lat1, lng1, lat2, lng2) => {
-    const R = 6371; // Earth's radius in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
               Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
               Math.sin(dLng/2) * Math.sin(dLng/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; // Distance in km
+    return R * c;
   };
 
   const isWithinCollegePremises = (lat, lng) => {
     const distance = getDistance(lat, lng, COLLEGE_LOCATION.lat, COLLEGE_LOCATION.lng);
-    return distance <= 0.050; // Within 1km of college
+    return distance <= 0.050;
   };
 
-  // Fetch timetable for student's class
   const loadTimetable = async () => {
     if (user?.class_id) {
       const { data } = await fetchTimetable(user.class_id);
       if (data) {
         setTimetableData(data);
-        // Filter for today's schedule
-        const today = new Date().getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+        const today = new Date().getDay();
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const todayEntries = data.filter(entry => entry.day === dayNames[today]);
         setTodaySchedule(todayEntries.map(entry => ({
@@ -66,13 +65,12 @@ const StudentDashboard = ({ user }) => {
           subject: entry.subject,
           time: `${entry.start_time} - ${entry.end_time}`,
           teacher: entry.teacher,
-          status: 'upcoming' // Could be calculated based on current time
+          status: 'upcoming'
         })));
       }
     }
   };
 
-  // Fetch exams for student's class
   const loadExams = async () => {
     if (user?.class_id) {
       const { data } = await fetchExams(user.class_id);
@@ -83,7 +81,6 @@ const StudentDashboard = ({ user }) => {
   };
 
   useEffect(() => {
-    // Simulate getting current location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -101,7 +98,6 @@ const StudentDashboard = ({ user }) => {
     loadTimetable();
     loadExams();
 
-    // Subscribe to timetable changes for real-time updates
     const timetableChannel = supabase
       .channel('timetable_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'timetable' }, (payload) => {
@@ -110,7 +106,6 @@ const StudentDashboard = ({ user }) => {
       })
       .subscribe();
 
-    // Subscribe to exams changes for real-time updates
     const examsChannel = supabase
       .channel('exams_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'exams' }, (payload) => {
@@ -125,32 +120,32 @@ const StudentDashboard = ({ user }) => {
     };
   }, [user, fetchTimetable, fetchExams]);
 
-  const handleMarkAttendance = () => {
+  const handleMarkAttendance = (biometricType) => {
+    setSelectedBiometric(biometricType);
     handleBLEAttendance();
   };
 
   const handleBLEAttendance = async () => {
-    // Scan for beacon (will try Web Bluetooth first, then fallback to simulation)
     const result = await scanForBeacon('CLASSROOM_301', -70);
 
     if (result.success && result.beacon) {
-      // Open face recognition modal after beacon detection
-      setShowFaceRecognition(true);
+      if (selectedBiometric === 'fingerprint') {
+        setShowFingerprint(true);
+      } else {
+        setShowFaceRecognition(true);
+      }
     }
   };
 
-  const handleFaceVerificationSuccess = async () => {
-    // Determine beacon ID if BLE method was used
+  const handleBiometricVerificationSuccess = async () => {
     const beaconId = attendanceMethod === 'ble' ? beaconFound?.id : null;
 
-    // Mark attendance using the hook
     const result = await markAttendance(user.id, currentLocation, 'Current Class', beaconId);
     if (result.error) {
       alert('Failed to mark attendance. Please try again.');
       return;
     }
 
-    // Update user points
     const { error: pointsError } = await supabase
       .from('users')
       .update({ points: user.points + 10 })
@@ -162,7 +157,9 @@ const StudentDashboard = ({ user }) => {
 
     setAttendanceStatus('marked');
     setShowFaceRecognition(false);
-    alert('Attendance marked successfully with BLE + Face! +10 points earned');
+    setShowFingerprint(false);
+    const methodText = selectedBiometric === 'fingerprint' ? 'Fingerprint' : 'Face';
+    alert(`Attendance marked successfully with BLE + ${methodText}! +10 points earned`);
   };
 
   const handleODSubmit = (odData) => {
@@ -174,7 +171,6 @@ const StudentDashboard = ({ user }) => {
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -185,7 +181,6 @@ const StudentDashboard = ({ user }) => {
           <p className="text-gray-600">Track your attendance and earn rewards</p>
         </motion.div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -248,11 +243,8 @@ const StudentDashboard = ({ user }) => {
           </motion.div>
         </div>
 
-        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Attendance Section */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -277,8 +269,6 @@ const StudentDashboard = ({ user }) => {
                   </div>
               </div>
 
-
-
               {attendanceStatus === 'not-marked' ? (
                 <>
                   {isScanning ? (
@@ -290,19 +280,31 @@ const StudentDashboard = ({ user }) => {
                     </div>
                   ) : beaconFound ? (
                     <div className="text-center py-3 px-4 bg-green-50 text-green-700 rounded-lg font-medium">
-                      ✓ Beacon found! Attendance marked.
+                      ✓ Beacon found! Verify with biometric.
                     </div>
                   ) : (
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleMarkAttendance}
-                      disabled={isScanning || !isWebBluetoothSupported()}
-                      className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-                    >
-                      <Bluetooth className="h-4 w-4 inline mr-2" />
-                      Scan for BLE Beacon + Face
-                    </motion.button>
+                    <div className="space-y-3">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleMarkAttendance('face')}
+                        disabled={isScanning || !isWebBluetoothSupported()}
+                        className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-emerald-700 transition-colors duration-200 disabled:opacity-50 flex items-center justify-center"
+                      >
+                        <Bluetooth className="h-4 w-4 inline mr-2" />
+                        BLE + Face Recognition
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleMarkAttendance('fingerprint')}
+                        disabled={isScanning || !isWebBluetoothSupported()}
+                        className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 flex items-center justify-center"
+                      >
+                        <Fingerprint className="h-4 w-4 inline mr-2" />
+                        BLE + Fingerprint
+                      </motion.button>
+                    </div>
                   )}
                 </>
               ) : (
@@ -312,7 +314,6 @@ const StudentDashboard = ({ user }) => {
               )}
             </motion.div>
 
-            {/* Today's Schedule */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -344,7 +345,6 @@ const StudentDashboard = ({ user }) => {
               </div>
             </motion.div>
 
-            {/* Weekly Timetable */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -401,7 +401,6 @@ const StudentDashboard = ({ user }) => {
               </div>
             </motion.div>
 
-            {/* Exam Schedule */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -429,13 +428,10 @@ const StudentDashboard = ({ user }) => {
               </div>
             </motion.div>
 
-            {/* Attendance Chart */}
             <AttendanceChart data={attendanceData} />
           </div>
 
-          {/* Right Column */}
           <div className="space-y-8">
-            {/* Quick Actions */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -456,7 +452,6 @@ const StudentDashboard = ({ user }) => {
               </div>
             </motion.div>
 
-            {/* Badges */}
             {user.badges && user.badges.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -476,10 +471,8 @@ const StudentDashboard = ({ user }) => {
               </motion.div>
             )}
 
-            {/* Leaderboard */}
             <Leaderboard currentUser={user} />
 
-            {/* Campus Locations Map */}
             <div className="mt-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Campus Locations</h2>
               <CampusMap />
@@ -488,7 +481,6 @@ const StudentDashboard = ({ user }) => {
         </div>
       </div>
 
-      {/* OD Form Modal */}
       {showODForm && (
         <ODForm
           onSubmit={handleODSubmit}
@@ -496,13 +488,20 @@ const StudentDashboard = ({ user }) => {
         />
       )}
 
-      {/* Face Recognition Modal */}
       {showFaceRecognition && (
         <FaceRecognition
           user={user}
           location={currentLocation}
-          onSuccess={handleFaceVerificationSuccess}
+          onSuccess={handleBiometricVerificationSuccess}
           onCancel={() => setShowFaceRecognition(false)}
+        />
+      )}
+
+      {showFingerprint && (
+        <FingerprintAuthentication
+          user={user}
+          onSuccess={handleBiometricVerificationSuccess}
+          onCancel={() => setShowFingerprint(false)}
         />
       )}
     </div>
