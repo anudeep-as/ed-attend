@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { AlertCircle, Camera, CheckCircle, RotateCcw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { supabase } from '../lib/supabase';
 
 const FaceRecognition = ({ user, location, onSuccess, onCancel }) => {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -62,7 +61,10 @@ const FaceRecognition = ({ user, location, onSuccess, onCancel }) => {
     }
   };
 
-  const verifyFace = async () => {
+const verifyFace = async () => {
+  // Prevent background clicks
+  if (event) event.stopPropagation();
+
     if (!capturedImage) return;
 
     setIsVerifying(true);
