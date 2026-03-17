@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Bell, GraduationCap, LogOut, Menu, Settings, User, X } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const Navbar = ({ user, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,12 +13,24 @@ const Navbar = ({ user, onLogout }) => {
     navigate('/login');
   };
 
-  let navItems = [
-    { name: 'Dashboard', href: `/${user?.role}-dashboard`, current: true }
+const location = useLocation();
+let navItems = [
+    { name: 'Dashboard', href: `/${user?.role}-dashboard`, current: location.pathname === `/${user?.role}-dashboard` }
   ];
 
-  // Role-specific navigation items
+  // Role-specific navigation items with dynamic current state
   if (user?.role === 'admin') {
+    navItems = navItems.map(item => ({
+      ...item,
+      current: location.pathname === '/admin-dashboard'
+    })).concat([
+      { name: 'User Management', href: '/admin/users', current: location.pathname === '/admin/users' },
+      { name: 'Timetable Management', href: '/admin/timetable', current: location.pathname === '/admin/timetable' },
+      { name: 'Analytics', href: '/analytics', current: location.pathname === '/analytics' },
+      { name: 'Reports', href: '/reports', current: location.pathname === '/reports' },
+      { name: 'Settings', href: '/settings', current: location.pathname === '/settings' }
+    ]);
+  } else if (user?.role === 'teacher') {
     navItems = [
       ...navItems,
       { name: 'User Management', href: '/admin/users', current: false },
