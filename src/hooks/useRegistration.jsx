@@ -1,47 +1,43 @@
-import { supabase } from '../lib/supabase';
+import { authHelpers, dbHelpers } from '../lib/firebase';
 
 export const useRegistration = () => {
   const registerUser = async (userData) => {
     try {
-      // Check if email already exists in users table
-      const { data: existingUser, error: userCheckError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', userData.email.toLowerCase())
-        .single();
-
-      if (userCheckError && userCheckError.code !== 'PGRST116') { // PGRST116 means no rows found
-        throw userCheckError;
-      }
-      if (existingUser) {
-        throw new Error('A user with this email already exists');
+      // Check if email already exists
+      const checkResult = await dbHelpers.getUserByEmail(userData.email.toLowerCase());
+      if (checkResult.data) {
+        return {
+          success: false,
+          error: 'A user with this email already exists'
+        };
       }
 
-      // Create user profile in the users table
-      const { data: newUser, error: userError } = await supabase
-        .from('users')
-        .insert([
-          {
-            name: userData.name,
-            email: userData.email.toLowerCase(),
-            password: userData.password, // Store password in plain text for demo
-            role: userData.role,
-            roll_no: userData.role === 'student' ? userData.rollNo : null,
-            class_id: userData.role === 'student' ? userData.classId : null,
-            points: 0,
-            badges: [],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ])
-        .select()
-        .single();
+      // Create user with Firebase Auth + Firestore profile
+      const signupResult = await authHelpers.signUp(
+        userData.email.toLowerCase(), 
+        userData.password, 
+        {
+          name: userData.name,
+          role: userData.role,
+          roll_no: userData.role === 'student' ? userData.rollNo : null,
+          department: userData.department || null,
+          year: userData.year || null,
+          section: userData.section || null,
+          points: 0,
+          badges: []
+        }
+      );
 
-      if (userError) throw userError;
+      if (signupResult.error) {
+        return {
+          success: false,
+          error: signupResult.error.message || 'Registration failed'
+        };
+      }
 
       return {
         success: true,
-        data: newUser,
+        data: signupResult.data.user,
         message: 'Registration successful!'
       };
     } catch (error) {

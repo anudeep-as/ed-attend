@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { supabase } from '../lib/supabase';
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
@@ -11,7 +10,22 @@ export const useAuth = () => {
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+// Firebase real-time auth listener
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            setUser(userDoc.data());
+            setIsAuthenticated(true);
+          }
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+        setLoading(false);
+      });
+
+      return unsubscribe;
         if (error) {
           console.error('Error getting session:', error);
           setLoading(false);

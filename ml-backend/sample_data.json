@@ -1,0 +1,12 @@
+[
+  {
+    "student_id": "CS2024001",
+    "historical_attendance": [
+      {"date": "2025-01-20", "status": 1.0, "method": 1, "time_hour": 9, "points": 150, "streak_days": 5},
+      {"date": "2025-01-21", "status": 1.0, "method": 2, "time_hour": 10, "points": 155, "streak_days": 6},
+      {"date": "2025-01-22", "status": 0.0, "method": 0, "time_hour": 14, "points": 150, "streak_days": 0},
+      {"date": "2025-01-23", "status": 1.0, "method": 1, "time_hour": 9, "points": 160, "streak_days": 1}
+    ]
+  }
+]
+

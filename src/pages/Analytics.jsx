@@ -3,7 +3,7 @@ import { Calendar, Clock, Target, TrendingUp, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { supabase } from '../lib/supabase';
+import { useMLAnalytics } from '../hooks/useMLAnalytics';
 
 const Analytics = ({ user }) => {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -14,6 +14,7 @@ const Analytics = ({ user }) => {
     presentToday: 0,
     totalClasses: 0
   });
+  const { mlData, anomalyData, loading: mlLoading } = useMLAnalytics(user?.id || 'demo-student');
 
   const mockAttendanceData = [
     { month: 'Jan', attendance: 85, target: 90 },
@@ -146,16 +147,33 @@ const Analytics = ({ user }) => {
             </motion.div>
           </div>
 
-          {/* Charts */}
+          {/* Charts + ML Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* ML Predictions (Priority) */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="lg:col-span-2"
+            >
+              <MLPredictionChart 
+                mlData={mlData} 
+                anomalyData={anomalyData} 
+                isLoading={mlLoading}
+              />
+            </motion.div>
+
             {/* Attendance Trend */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
               className="bg-white rounded-xl shadow-lg p-6"
             >
-              <h3 className="text-xl font-semibold text-gray-900 mb-4 font-nunito">Attendance Trend</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-4 font-nunito flex items-center">
+                <TrendingUp className="h-6 w-6 mr-2 text-teal-600" />
+                Attendance Trend
+              </h3>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={attendanceData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -191,7 +209,7 @@ const Analytics = ({ user }) => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
               className="bg-white rounded-xl shadow-lg p-6"
             >
               <h3 className="text-xl font-semibold text-gray-900 mb-4 font-nunito">Department Distribution</h3>
